@@ -1,0 +1,5 @@
+20.000000
+Estação 1: Trabalhador 3 -> Tarefas: 1 2 3 4 5 8 9
+Estação 2: Trabalhador 4 -> Tarefas: 6 7 11 13 14 20 21
+Estação 3: Trabalhador 2 -> Tarefas: 12 15 16 17 18 24
+Estação 4: Trabalhador 1 -> Tarefas: 10 19 22 23 25

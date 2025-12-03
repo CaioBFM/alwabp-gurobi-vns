@@ -1,8 +1,16 @@
 import os
 import pandas as pd
 
+"""
+Consolida resultados do VNS:
+- Lê arquivos <num>_<inst>_repX_seedY.txt
+- Extrai valores das seeds
+- Cruza com instances.csv (LB)
+- Gera resultado_vns.csv com melhor valor e erro
+"""
+
 # Caminhos
-PASTA_VNS = "vns_results"
+PASTA_VNS = "testes_relatorio/vns_resultados_teste_relatorio"
 ARQUIVO_INSTANCIAS = "instances.csv"
 SAIDA_CSV = "resultado_vns.csv"
 
@@ -32,7 +40,7 @@ def main():
         nome = os.path.splitext(arquivo)[0]
         partes = nome.split("_")
 
-        num = int(partes[0])  # Corrigido para inteiro
+        num = int(partes[0])  
         inst_simplificada = partes[1]
         seed = int(partes[-1].replace("seed", ""))
 
@@ -42,7 +50,6 @@ def main():
 
         inst_completa = MAP_INSTANCIAS[inst_simplificada]
 
-        # Lê a primeira linha do arquivo
         caminho = os.path.join(PASTA_VNS, arquivo)
         with open(caminho, "r") as f:
             primeira_linha = f.readline().strip()
@@ -53,34 +60,29 @@ def main():
             print(f"⚠️ Erro ao converter valor em {arquivo}: {primeira_linha}")
             continue
 
-        chave = (inst_completa, num)  # Corrigido: chave é (instancia, num)
+        chave = (inst_completa, num)
         if chave not in resultados:
             resultados[chave] = {}
 
         resultados[chave][f"seed_{seed}"] = valor
 
-    # Monta DataFrame final
     linhas = []
     for (inst_completa, num), valores in resultados.items():
         linha = {"instancia": inst_completa, "num": num}
 
-        # Valor ótimo da base (corrigido: filtra por nome e num)
         valor_otimo = df_inst.loc[
             (df_inst["name"] == inst_completa) & (df_inst["num"] == num), "LB"
         ].values
         valor_otimo = float(valor_otimo[0]) if len(valor_otimo) > 0 else None
         linha["valor_otimo"] = valor_otimo
 
-        # Adiciona valores das seeds
         for s in SEEDS:
             linha[f"seed_{s}"] = valores.get(f"seed_{s}", None)
 
-        # Melhor valor entre as seeds
         seed_vals = [v for v in [linha[f"seed_{s}"] for s in SEEDS] if v is not None]
         melhor_valor = min(seed_vals) if seed_vals else None
         linha["melhor_valor"] = melhor_valor
 
-        # Erro
         if melhor_valor is not None and valor_otimo is not None:
             linha["erro"] = melhor_valor - valor_otimo
         else:

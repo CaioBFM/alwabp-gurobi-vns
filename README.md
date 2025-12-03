@@ -1,5 +1,17 @@
 # Trabalho Prático Final - GCC118/PCC540: ALWABP com VNS
 
+## Sumário
+
+- [1. Introdução](#1-introdução)
+- [2. Formulação MILP](#2-formulação-do-problema-como-programa-linear-inteiro-misto-milp)
+- [3. Algoritmo Proposto: VNS](#3-algoritmo-proposto-variable-neighborhood-search-vns)
+- [4. Resultados Obtidos](#4-resultados-obtidos-com-análise)
+- [5. Como Executar o Programa](#5-como-executar-o-programa)
+- [6. Conclusão](#6-conclusão)
+- [7. Bibliografia](#7-bibliografia)
+
+---
+
 ## 1. Introdução
 
 O presente trabalho visa a resolução do **Problema de Balanceamento de Linhas de Produção e Designação de Trabalhadores (ALWABP)**, um problema de otimização combinatória que busca minimizar o tempo de ciclo de uma linha de montagem ao mesmo tempo em que considera a alocação de trabalhadores com diferentes tempos de execução e restrições de incapacidade. Para tal, foi utilizada a metaheurística **Variable Neighborhood Search (VNS)**.
@@ -188,11 +200,75 @@ A tabela de resultados deve seguir o formato exigido, apresentando a média das 
 
 **(Preencher com a análise)**
 
-## 5. Conclusão
+## 5. Como Executar o Programa
+
+Siga o passo a passo abaixo para executar corretamente o VNS e gerar os resultados.
+
+### 5.1. Requisitos
+
+- Python **3.10+**
+
+Instalação das dependências:
+
+```bash
+pip install bibliotecas_necessarias
+```
+
+### 5.2. Estrutura esperada das pastas
+
+```bash
+PM_TRABALHO/
+│
+├── teste_todas_instancias/
+│ ├── alwabp/ # scripts/arquivos para teste em todas as instâncias
+│ ├── vns_results/
+│ └── comparacao_seeds_final.csv
+│
+└── testes_relatorio/
+├── instacias_teste_relatorio/ # instâncias usadas especificamente no relatório
+├── vns_resultados_teste_relatorio/ # resultados das execuções do relatório
+│ └── summary_results.csv
+│
+├── alwabp_vns.py # implementação principal do VNS para o relatório
+├── gerar_csv_vns.py
+├── instances.csv
+├── resultado_vns.csv
+├── run_all_vns_parallel.py
+└── README.md
+
+```
+
+### 5.3. Executar instâncias
+
+```bash
+python run_all_vns.py
+```
+
+Esse script:
+
+- lê todas as instâncias dentro de `instacias_teste_relatorio/`;
+- executa o VNS diversas vezes com seeds diferentes;
+- salva os resultados na pasta `vns_resultados_teste_relatorio/`.
+
+### 5.4. Gerar o CSV final consolidado
+
+Após rodar tudo:
+
+```bash
+python gerar_csv_vns.py
+
+```
+
+Ele gera e atualiza arquivos como:
+
+- `summary_results.csv`;
+- `resultado_vns.csv`.
+
+## 6. Conclusão
 
 **(Preencher com a conclusão)**
 
-## 6. Bibliografia
+## 7. Bibliografia
 
 **(Preencher com as referências, incluindo a referência original do ALWABP)**
 
