@@ -1,0 +1,178 @@
+import sys
+from gurobipy import *
+
+# ============================================================
+# Carrega instância no formato que você enviou
+# ============================================================
+class ALWABPInstance:
+    def __init__(self, n, k, task_times, precedences):
+        self.num_tasks = n
+        self.num_workers = k
+        self.task_times = task_times      # task_times[w][i]
+        self.precedences = precedences    # pares (i,j)
+
+    @classmethod
+    def from_file(cls, file_path):
+        with open(file_path, 'r') as f:
+            line = f.readline().strip()
+            if not line:
+                raise ValueError("Erro ao ler n")
+            n = int(line)
+
+            # matriz t_iw (n linhas, k colunas)
+            raw = []
+            k = 0
+            for _ in range(n):
+                line = f.readline().strip()
+                times = []
+                for x in line.split():
+                    if x.lower() == 'inf':
+                        times.append(1e12)  # Usar um valor muito grande para Inf
+                    else:
+                        times.append(float(x))
+                raw.append(times)
+                if k == 0:
+                    k = len(times)
+                elif len(times) != k:
+                    raise ValueError("Quantidade inconsistente de tempos")
+
+            # transposição: task_times[w][i]
+            task_times = [[raw[i][w] for i in range(n)] for w in range(k)]
+
+            # precedências (converter para índices 0-based)
+            prec = []
+            while True:
+                line = f.readline().strip()
+                if not line:
+                    break
+                i, j = map(int, line.split())
+                if i == -1 and j == -1:
+                    break
+                # Converter de 1-based para 0-based
+                prec.append((i-1, j-1))
+
+        return cls(n, k, task_times, prec)
+
+# ============================================================
+# Construção e solução do modelo de Gurobi
+# ============================================================
+def solve_alwabp_gurobi(inst: ALWABPInstance):
+    n = inst.num_tasks
+    k = inst.num_workers
+    m = k   # número de estações = número de trabalhadores
+    TW = inst.task_times
+    prec = inst.precedences
+
+    model = Model("ALWABP")
+    model.Params.OutputFlag = 1
+
+    S = range(m)
+    W = range(k)
+    I = range(n)
+
+    # ------------------------------------------------------------
+    # Variáveis
+    # ------------------------------------------------------------
+    x = model.addVars(n, m, vtype=GRB.BINARY, name="x")
+    y = model.addVars(k, m, vtype=GRB.BINARY, name="y")
+    z = model.addVars(k, n, m, vtype=GRB.BINARY, name="z")
+    c = model.addVar(vtype=GRB.CONTINUOUS, lb=0, name="cycle")
+
+    # ------------------------------------------------------------
+    # 1. Cada tarefa em exatamente uma estação
+    # ------------------------------------------------------------
+    for i in I:
+        model.addConstr(sum(x[i,s] for s in S) == 1)
+
+    # ------------------------------------------------------------
+    # 2. Cada trabalhador em exatamente uma estação
+    # ------------------------------------------------------------
+    for w in W:
+        model.addConstr(sum(y[w,s] for s in S) == 1)
+
+    # ------------------------------------------------------------
+    # 3. Cada estação tem exatamente 1 trabalhador
+    # ------------------------------------------------------------
+    for s in S:
+        model.addConstr(sum(y[w,s] for w in W) == 1)
+
+    # ------------------------------------------------------------
+    # 4. Precedências
+    # ------------------------------------------------------------
+    for (i,j) in prec:
+        if 0 <= i < n and 0 <= j < n:  # Verificação de segurança
+            lhs = sum((s+1)*x[i,s] for s in S)
+            rhs = sum((s+1)*x[j,s] for s in S)
+            model.addConstr(lhs <= rhs)
+
+    # ------------------------------------------------------------
+    # 5. Linearização z[w,i,s] = x[i,s] * y[w,s]
+    # ------------------------------------------------------------
+    for w in W:
+        for i in I:
+            for s in S:
+                model.addConstr(z[w,i,s] <= x[i,s])
+                model.addConstr(z[w,i,s] <= y[w,s])
+                model.addConstr(z[w,i,s] >= x[i,s] + y[w,s] - 1)
+
+    # ------------------------------------------------------------
+    # 6. Restrição de tempo por estação
+    # ------------------------------------------------------------
+    for s in S:
+        model.addConstr(sum(TW[w][i] * z[w,i,s] for w in W for i in I) <= c)
+
+    # ------------------------------------------------------------
+    # 7. Incapacidades (twi = ∞)
+    # ------------------------------------------------------------
+    for w in W:
+        for i in I:
+            if TW[w][i] >= 1e12:  # interpreta como "incapaz"
+                for s in S:
+                    model.addConstr(z[w,i,s] == 0)
+
+    # ------------------------------------------------------------
+    # Objetivo: minimizar ciclo
+    # ------------------------------------------------------------
+    model.setObjective(c, GRB.MINIMIZE)
+
+    # ------------------------------------------------------------
+    # Resolve
+    # ------------------------------------------------------------
+    model.optimize()
+
+    if model.status not in [GRB.OPTIMAL, GRB.TIME_LIMIT]:
+        print("Nenhuma solução viável encontrada.")
+        return
+
+    # ============================================================
+    # Imprime solução
+    # ============================================================
+    print("=== SOLUÇÃO ALWABP via GUROBI ===")
+    print(f"Tempo de ciclo: {c.X}")
+    print(f"Custo total: {model.ObjVal}")
+
+    # Trabalhador por estação
+    print("\nTrabalhador por estação:")
+    for s in S:
+        for w in W:
+            if y[w,s].X > 0.5:
+                print(f" Estação {s+1}: trabalhador {w+1}")
+
+    # Tarefas por estação (mostrar como 1-based para o usuário)
+    print("\nTarefas por estação:")
+    for s in S:
+        tasks_s = [i+1 for i in I if x[i,s].X > 0.5]
+        print(f" Estação {s+1}: {tasks_s}")
+
+
+# ============================================================
+# MAIN
+# ============================================================
+if __name__ == "__main__":
+    if len(sys.argv) != 2:
+        print("Uso: python <script.py> <caminho_do_arquivo>")
+        sys.exit(1)
+    
+    file_path = sys.argv[1]  # Caminho do arquivo
+    inst = ALWABPInstance.from_file(file_path)
+    solve_alwabp_gurobi(inst)
