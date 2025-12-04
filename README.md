@@ -219,36 +219,39 @@ pip install bibliotecas_necessarias
 ```bash
 PM_TRABALHO/
 │
-├── teste_todas_instancias/
-│ ├── alwabp/ # scripts/arquivos para teste em todas as instâncias
-│ ├── vns_results/
-│ └── comparacao_seeds_final.csv
+├── METODO_EXATO/
+│ ├── resultados_instancia/
+│ ├── alwabp_gurobi.py
+│ ├── file_handler.py
+│ └── run_gurobi.py
 │
-└── testes_relatorio/
-├── instancias_teste_relatorio/ # instâncias usadas especificamente no relatório
-├── vns_resultados_teste_relatorio/ # resultados das execuções do relatório
-│ └── summary_results.csv
+├── METODO_HEURISTICA/
+│ ├── testes_relatorio/
+│ ├── alwabp_vns.py
+│ ├── gerar_csv_vns.py
+│ ├── instances.csv
+│ ├── resultado_vns.csv
+│ ├── run_all_vns_parallel.py
+│ └── README.md
 │
-├── alwabp_vns.py # implementação principal do VNS para o relatório
-├── gerar_csv_vns.py
-├── instances.csv
-├── resultado_vns.csv
-├── run_all_vns_parallel.py
+├── gera_csv_final.py
+├── csv_final.csv
 └── README.md
-
 ```
 
-### 5.3. Executar instâncias
+### 5.3. Executar instâncias (heuristica)
 
 ```bash
+cd METODO_HEURISTICA
+
 python run_all_vns.py
 ```
 
 Esse script:
 
-- lê todas as instâncias dentro de `instancias_teste_relatorio/`;
+- lê todas as instâncias dentro de `teste_relatorio/instancias_teste_relatorio`;
 - executa o VNS diversas vezes com seeds diferentes;
-- salva os resultados na pasta `vns_resultados_teste_relatorio/`.
+- salva os resultados na pasta `teste_relatorio/vns_resultados_teste_relatorio/`.
 
 ### 5.4. Gerar o CSV final consolidado
 
@@ -256,13 +259,38 @@ Após rodar tudo:
 
 ```bash
 python gerar_csv_vns.py
-
 ```
 
 Ele gera e atualiza arquivos como:
 
 - `summary_results.csv`;
 - `resultado_vns.csv`.
+
+### 5.5. Executar instâncias (solver)
+
+```bash
+cd METODO_EXATO
+
+python run_gurobi.py
+
+```
+
+Esse script realiza as seguintes operações:
+
+- **Leitura das instâncias**: O script começa lendo todas as instâncias de problema localizadas na pasta `instancias_teste_relatorio/`. Cada instância contém dados necessários para rodar o modelo de otimização.
+
+- **Execução do Solver (Gurobi)**: O script utiliza o Gurobi Optimizer para resolver o problema de otimização. O solver é executado por no máximo 20 minutos, respeitando a limitação do tempo de execução configurado.
+
+- **Licença Acadêmica**: Caso você esteja utilizando uma versão acadêmica do Gurobi, o script fará uso da licença do Gurobi Optimizer. A versão do solver utilizada neste caso é o Gurobi Optimizer versão 13.0.0 (build v13.0.0rc1), que é compatível com sistemas Windows 11 e acima.
+
+- **Salvamento dos Resultados**: O script salva a melhor solução obtida, juntamente com as seguintes métricas de desempenho:
+
+  - **Solução Ótima Obtida**: O valor da melhor solução encontrada para o problema.
+  - **Gap de Distância do Ótimo**: A diferença entre a melhor solução encontrada e o valor ótimo (se disponível).
+  - **Rotas**: Detalhes sobre as rotas geradas, incluindo o número de rotas e a alocação de tarefas aos trabalhadores.
+  - **Tempo de Execução**: O tempo total que o Gurobi levou para processar e encontrar a solução, com uma limitação de 20 minutos por execução.
+
+- **Armazenamento**: Todos os resultados são salvos na pasta `resultados_instancias/` para posterior análise e comparação com outras instâncias.
 
 ## 6. Conclusão
 
