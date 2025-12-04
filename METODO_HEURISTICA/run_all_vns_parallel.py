@@ -7,8 +7,8 @@ from run_vns import prepare_tasks, run_single_replication
 
 
 # Configurações gerais
-NUM_REPLICATIONS = 11
-SEEDS = [42, 101, 202, 303, 404, 505, 606, 707, 808, 909, 1001]
+NUM_REPLICATIONS = 16
+SEEDS = [42, 101, 202, 303, 404, 505, 606, 707, 808, 909, 1001, 1707, 1905, 1936, 1969, 1618]
 
 INSTANCES_DIR = "testes_relatorio/instancias_teste_relatorio"
 VNS_SCRIPT = "alwabp_vns.py"

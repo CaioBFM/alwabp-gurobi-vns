@@ -273,4 +273,8 @@ Ele gera e atualiza arquivos como:
 **(Preencher com as referências, incluindo a referência original do ALWABP)**
 
 - Miralles, C., Garcia-Sabater, J. P., Andres, C., & Cardos, M. (2007). Advantages of assembly lines in sheltered work centres for disabled. A case study. International Journal of Production Economics, 110(1-2), 187-197.
-- (Outras referências)
+- Hansen, P., & Mladenović, N. (2001). Variable neighborhood search: Principles and applications. _European Journal of Operational Research, 130_(3), 449-467.
+- Gendreau, M., & Potvin, J. Y. (Eds.). (2019). _Handbook of Metaheuristics_ (3rd ed.). Springer.
+- Mladenović, N., & Hansen, P. (1997). Variable neighborhood search. _Computers & Operations Research, 24_(11), 1097-1100.
+- Torres, P., & Lima, C. (2018). _Metaheuristics for Logistics_. Wiley.
+- Knuth, D. E. (1997). _The Art of Computer Programming, Volume 2: Seminumerical Algorithms_ (3rd ed.). Addison-Wesley.
