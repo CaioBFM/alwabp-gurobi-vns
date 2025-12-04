@@ -1,0 +1,56 @@
+============================================================
+INSTÂNCIA: 75 tarefas, 11 trabalhadores
+============================================================
+SOLUÇÃO ALWABP via GUROBI
+------------------------------------------------------------
+Status: Time limit atingido (20 minutos)
+Melhor solução encontrada até o momento
+Tempo de ciclo: 64.0
+Valor objetivo: 64.0
+Gap: 96.8750%
+Tempo de execução: 10.03 segundos
+Limite de tempo: 10 segundos
+
+Trabalhador por estação:
+ Estaçao 1: trabalhador 3
+ Estaçao 2: trabalhador 10
+ Estaçao 3: trabalhador 8
+ Estaçao 4: trabalhador 11
+ Estaçao 5: trabalhador 9
+ Estaçao 6: trabalhador 6
+ Estaçao 7: trabalhador 4
+ Estaçao 8: trabalhador 2
+ Estaçao 9: trabalhador 5
+ Estaçao 10: trabalhador 7
+ Estaçao 11: trabalhador 1
+
+Tarefas por estação:
+ Estaçao 1 (trabalhador 3): [1, 2, 5, 6, 9, 15, 20, 27]
+  Tempo total na estação: 64.0
+ Estaçao 2 (trabalhador 10): [3, 4, 10, 16, 18, 24, 26, 31, 35, 36]
+  Tempo total na estação: 64.0
+ Estaçao 3 (trabalhador 8): [11, 14, 25, 42]
+  Tempo total na estação: 64.0
+ Estaçao 4 (trabalhador 11): [7, 21, 33, 38, 40, 43, 47, 49, 61]
+  Tempo total na estação: 63.0
+ Estaçao 5 (trabalhador 9): [12, 17, 19, 34, 39, 46]
+  Tempo total na estação: 50.0
+ Estaçao 6 (trabalhador 6): [8, 30, 37, 59, 66]
+  Tempo total na estação: 47.0
+ Estaçao 7 (trabalhador 4): [28, 32, 41, 64, 68, 69]
+  Tempo total na estação: 50.0
+ Estaçao 8 (trabalhador 2): [29, 44, 52, 56, 57, 70, 73, 74]
+  Tempo total na estação: 60.0
+ Estaçao 9 (trabalhador 5): [13, 23, 45, 50, 51, 54, 55, 62, 72]
+  Tempo total na estação: 60.0
+ Estaçao 10 (trabalhador 7): [22, 48, 53, 58, 60, 63, 65, 67]
+  Tempo total na estação: 60.0
+ Estaçao 11 (trabalhador 1): [71, 75]
+  Tempo total na estação: 49.0
+
+ANÁLISE DE BALANCEAMENTO:
+  Tempo máximo na estação: 64.0
+  Tempo mínimo na estação: 47.0
+  Tempo médio nas estações: 57.36
+  Desbalanceamento: 11.57%
+============================================================

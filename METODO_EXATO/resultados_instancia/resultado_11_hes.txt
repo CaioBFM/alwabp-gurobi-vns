@@ -1,0 +1,34 @@
+============================================================
+INSTÂNCIA: 28 tarefas, 4 trabalhadores
+============================================================
+SOLUÇÃO ALWABP via GUROBI
+------------------------------------------------------------
+Status: Solução ótima encontrada
+Tempo de ciclo: 169.0
+Valor objetivo: 169.0
+Gap: 0.0000%
+Tempo de execução: 0.27 segundos
+Limite de tempo: 10 segundos
+
+Trabalhador por estação:
+ Estaçao 1: trabalhador 4
+ Estaçao 2: trabalhador 3
+ Estaçao 3: trabalhador 1
+ Estaçao 4: trabalhador 2
+
+Tarefas por estação:
+ Estaçao 1 (trabalhador 4): [1, 2, 6, 8, 9, 21, 23, 24]
+  Tempo total na estação: 169.0
+ Estaçao 2 (trabalhador 3): [3, 10, 11, 15, 17, 25]
+  Tempo total na estação: 168.0
+ Estaçao 3 (trabalhador 1): [4, 7, 12, 18, 19, 20, 26, 27]
+  Tempo total na estação: 169.0
+ Estaçao 4 (trabalhador 2): [5, 13, 14, 16, 22, 28]
+  Tempo total na estação: 169.0
+
+ANÁLISE DE BALANCEAMENTO:
+  Tempo máximo na estação: 169.0
+  Tempo mínimo na estação: 168.0
+  Tempo médio nas estações: 168.75
+  Desbalanceamento: 0.15%
+============================================================

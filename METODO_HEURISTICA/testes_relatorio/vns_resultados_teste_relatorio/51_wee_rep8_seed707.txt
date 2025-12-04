@@ -1,0 +1,20 @@
+72.000000
+Estação 1: Trabalhador 7 -> Tarefas: 1 4 6 10 16 18 26 32
+Estação 2: Trabalhador 10 -> Tarefas: 3 8 9 11 13 22 24 31 39
+Estação 3: Trabalhador 16 -> Tarefas: 5 12 19 37 44
+Estação 4: Trabalhador 3 -> Tarefas: 2 14 15 21 23 45
+Estação 5: Trabalhador 6 -> Tarefas: 17 25 33 34
+Estação 6: Trabalhador 14 -> Tarefas: 7 20 27 28 29 36 40 41 43 46 48 51
+Estação 7: Trabalhador 4 -> Tarefas: 35 42 47 50 53 55 58 65
+Estação 8: Trabalhador 8 -> Tarefas: 30 38 52 57 60 63
+Estação 9: Trabalhador 2 -> Tarefas: 49 54 56 59 61 62 67
+Estação 10: Trabalhador 5 -> Tarefas: 66 68 69 70 72 73 74 75
+Estação 11: Trabalhador 12 -> Tarefas: 64
+Estação 12: Trabalhador 13 -> Tarefas: 
+Estação 13: Trabalhador 9 -> Tarefas: 
+Estação 14: Trabalhador 19 -> Tarefas: 71
+Estação 15: Trabalhador 18 -> Tarefas: 
+Estação 16: Trabalhador 15 -> Tarefas: 
+Estação 17: Trabalhador 17 -> Tarefas: 
+Estação 18: Trabalhador 11 -> Tarefas: 
+Estação 19: Trabalhador 1 -> Tarefas:

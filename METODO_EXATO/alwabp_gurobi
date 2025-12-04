@@ -1,4 +1,6 @@
 import sys
+import os
+from pathlib import Path
 from gurobipy import *
 
 # ============================================================
@@ -56,7 +58,7 @@ class ALWABPInstance:
 # ============================================================
 # Construção e solução do modelo de Gurobi
 # ============================================================
-def solve_alwabp_gurobi(inst: ALWABPInstance):
+def solve_alwabp_gurobi(inst: ALWABPInstance, time_limit=1200):
     n = inst.num_tasks
     k = inst.num_workers
     m = k   # número de estações = número de trabalhadores
@@ -64,8 +66,10 @@ def solve_alwabp_gurobi(inst: ALWABPInstance):
     prec = inst.precedences
 
     model = Model("ALWABP")
-    model.Params.OutputFlag = 1
-
+    model.Params.OutputFlag = 0  # Reduzir output no console
+    model.Params.TimeLimit = time_limit  # 20 minutos = 1200 segundos
+    model.Params.LogToConsole = 0  # Desativar log do Gurobi no console
+    
     S = range(m)
     W = range(k)
     I = range(n)
@@ -139,40 +143,191 @@ def solve_alwabp_gurobi(inst: ALWABPInstance):
     # Resolve
     # ------------------------------------------------------------
     model.optimize()
+    
+    # ============================================================
+    # Coleta resultados
+    # ============================================================
+    resultados = []
+    
+    # Informações básicas da instância
+    resultados.append("=" * 60)
+    resultados.append(f"INSTÂNCIA: {inst.num_tasks} tarefas, {inst.num_workers} trabalhadores")
+    resultados.append("=" * 60)
+    resultados.append("SOLUÇÃO ALWABP via GUROBI")
+    resultados.append("-" * 60)
+    
+    if model.status == GRB.OPTIMAL:
+        resultados.append(f"Status: Solução ótima encontrada")
+    elif model.status == GRB.TIME_LIMIT:
+        resultados.append(f"Status: Time limit atingido (20 minutos)")
+        if model.SolCount > 0:
+            resultados.append(f"Melhor solução encontrada até o momento")
+    elif model.status in [GRB.INFEASIBLE, GRB.INF_OR_UNBD]:
+        resultados.append("Status: Modelo infactível")
+        return resultados
+    elif model.status == GRB.UNBOUNDED:
+        resultados.append("Status: Modelo ilimitado")
+        return resultados
+    else:
+        resultados.append(f"Status do solver: {model.status}")
+    
+    if model.SolCount > 0:
+        # Tempo de ciclo (valor objetivo)
+        resultados.append(f"Tempo de ciclo: {c.X}")
+        resultados.append(f"Valor objetivo: {model.ObjVal}")
+        resultados.append(f"Gap: {model.MIPGap:.4%}")
+        resultados.append(f"Tempo de execução: {model.Runtime:.2f} segundos")
+        resultados.append(f"Limite de tempo: {time_limit} segundos")
+        
+        # Trabalhador por estação
+        resultados.append("\nTrabalhador por estação:")
+        worker_by_station = {}
+        for s in S:
+            for w in W:
+                if y[w,s].X > 0.5:
+                    resultados.append(f" Estaçao {s+1}: trabalhador {w+1}")
+                    worker_by_station[s] = w
+                    break
+        
+        # Tarefas por estação (mostrar como 1-based para o usuário)
+        resultados.append("\nTarefas por estação:")
+        for s in S:
+            tasks_s = [i+1 for i in I if x[i,s].X > 0.5]
+            resultados.append(f" Estaçao {s+1} (trabalhador {worker_by_station[s]+1}): {tasks_s}")
+            
+            # Calcular tempo de trabalho por estação
+            station_time = 0
+            w = worker_by_station[s]
+            for i in I:
+                if x[i,s].X > 0.5:
+                    station_time += TW[w][i]
+            resultados.append(f"  Tempo total na estação: {station_time}")
+            
+        # Informações de balanceamento
+        station_times = []
+        for s in S:
+            w = worker_by_station[s]
+            station_time = 0
+            for i in I:
+                if x[i,s].X > 0.5:
+                    station_time += TW[w][i]
+            station_times.append(station_time)
+        
+        if station_times:
+            max_time = max(station_times)
+            min_time = min(station_times)
+            avg_time = sum(station_times) / len(station_times)
+            balanceamento = (max_time - avg_time) / avg_time * 100
+            
+            resultados.append("\nANÁLISE DE BALANCEAMENTO:")
+            resultados.append(f"  Tempo máximo na estação: {max_time}")
+            resultados.append(f"  Tempo mínimo na estação: {min_time}")
+            resultados.append(f"  Tempo médio nas estações: {avg_time:.2f}")
+            resultados.append(f"  Desbalanceamento: {balanceamento:.2f}%")
+    else:
+        resultados.append("Nenhuma solução viável encontrada.")
+    
+    resultados.append("=" * 60)
+    return resultados
 
-    if model.status not in [GRB.OPTIMAL, GRB.TIME_LIMIT]:
-        print("Nenhuma solução viável encontrada.")
+# ============================================================
+# Processa todas as instâncias
+# ============================================================
+def processar_instancias(input_dir="instancias_teste_relatorio", output_dir="resultados_instancia"):
+    # Criar pastas se não existirem
+    Path(output_dir).mkdir(exist_ok=True)
+    
+    if not os.path.exists(input_dir):
+        print(f"Erro: A pasta '{input_dir}' não existe!")
+        print(f"Crie a pasta '{input_dir}' e coloque os arquivos de instância nela.")
         return
-
-    # ============================================================
-    # Imprime solução
-    # ============================================================
-    print("=== SOLUÇÃO ALWABP via GUROBI ===")
-    print(f"Tempo de ciclo: {c.X}")
-    print(f"Custo total: {model.ObjVal}")
-
-    # Trabalhador por estação
-    print("\nTrabalhador por estação:")
-    for s in S:
-        for w in W:
-            if y[w,s].X > 0.5:
-                print(f" Estação {s+1}: trabalhador {w+1}")
-
-    # Tarefas por estação (mostrar como 1-based para o usuário)
-    print("\nTarefas por estação:")
-    for s in S:
-        tasks_s = [i+1 for i in I if x[i,s].X > 0.5]
-        print(f" Estação {s+1}: {tasks_s}")
-
+    
+    # Listar arquivos na pasta de entrada
+    arquivos = []
+    for arquivo in os.listdir(input_dir):
+        arquivos.append(arquivo)
+    
+    if not arquivos:
+        print(f"Nenhum arquivo .txt encontrado na pasta '{input_dir}'")
+        return
+    
+    print(f"Encontrados {len(arquivos)} arquivos para processar:")
+    for arquivo in arquivos:
+        print(f"  - {arquivo}")
+    
+    # Processar cada arquivo
+    total_processados = 0
+    total_erros = 0
+    
+    for arquivo in arquivos:
+        input_path = os.path.join(input_dir, arquivo)
+        file_name = Path(arquivo).stem
+        output_file = os.path.join(output_dir, f"resultado_{file_name}.txt")
+        
+        print(f"\n{'='*60}")
+        print(f"Processando: {arquivo}")
+        print(f"{'='*60}")
+        
+        try:
+            # Carregar instância
+            print(f"Carregando instância...")
+            inst = ALWABPInstance.from_file(input_path)
+            print(f"  Instância carregada: {inst.num_tasks} tarefas, {inst.num_workers} trabalhadores")
+            
+            # Resolver com limite de tempo de 20 minutos (1200 segundos)
+            print(f"Resolvendo modelo (limite: 20 minutos)...")
+            resultados = solve_alwabp_gurobi(inst, time_limit=10)
+            
+            # Salvar resultados em arquivo
+            with open(output_file, 'w', encoding='utf-8') as f:
+                for linha in resultados:
+                    f.write(linha + '\n')
+            
+            print(f"Resultado salvo em: {output_file}")
+            
+            # Mostrar resumo no console
+            print("\nRESUMO DA SOLUÇÃO:")
+            for linha in resultados:
+                if "Tempo de ciclo" in linha or "Status:" in linha or "Valor objetivo" in linha or "Gap:" in linha:
+                    print(f"  {linha}")
+            
+            total_processados += 1
+            
+        except FileNotFoundError:
+            print(f"Erro: Arquivo '{input_path}' não encontrado.")
+            total_erros += 1
+        except Exception as e:
+            print(f"Erro ao processar '{arquivo}': {e}")
+            # Salvar erro em arquivo também
+            with open(output_file, 'w', encoding='utf-8') as f:
+                f.write(f"ERRO AO PROCESSAR INSTÂNCIA: {arquivo}\n")
+                f.write(f"Erro: {str(e)}\n")
+            total_erros += 1
+    
+    # Resumo final
+    print(f"\n{'='*60}")
+    print("PROCESSAMENTO CONCLUÍDO")
+    print(f"{'='*60}")
+    print(f"Total de arquivos processados: {total_processados}")
+    print(f"Total de erros: {total_erros}")
+    print(f"Resultados salvos na pasta: '{output_dir}'")
+    print(f"\nArquivos de resultado:")
+    for arquivo in os.listdir(output_dir):
+        print(f"  - {arquivo}")
 
 # ============================================================
 # MAIN
 # ============================================================
 if __name__ == "__main__":
-    if len(sys.argv) != 2:
-        print("Uso: python <script.py> <caminho_do_arquivo>")
-        sys.exit(1)
+    print("PROCESSADOR DE INSTÂNCIAS ALWABP")
+    print("=" * 60)
+    print("Este script irá:")
+    print("1. Ler todos os arquivos .txt da pasta 'instancias_teste_relatorio'")
+    print("2. Resolver cada instância com Gurobi (limite: 20 minutos)")
+    print("3. Salvar os resultados na pasta 'resultados_instancia'")
+    print("=" * 60)
     
-    file_path = sys.argv[1]  # Caminho do arquivo
-    inst = ALWABPInstance.from_file(file_path)
-    solve_alwabp_gurobi(inst)
+    # Processar todas as instâncias automaticamente
+    processar_instancias()
+    
+    input("\nPressione Enter para sair...")

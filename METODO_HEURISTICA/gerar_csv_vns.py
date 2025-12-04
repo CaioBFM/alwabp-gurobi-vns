@@ -23,7 +23,7 @@ MAP_INSTANCIAS = {
 }
 
 # Seeds esperadas
-SEEDS = [42, 101, 202, 303, 404]
+SEEDS = [42, 101, 202, 303, 404, 505, 606, 707, 808, 909, 1001]
 
 def main():
     # Lê o CSV de instâncias

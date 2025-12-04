@@ -470,7 +470,7 @@ def main():
     instance = ALWABPInstance.from_stdin()
 
     # Parâmetros do VNS
-    MAX_ITER = 500
+    MAX_ITER = 10
     K_MAX = 3
 
     # Semente da execução
