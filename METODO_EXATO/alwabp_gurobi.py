@@ -276,7 +276,7 @@ def processar_instancias(input_dir="instancias_teste_relatorio", output_dir="res
             
             # Resolver com limite de tempo de 20 minutos (1200 segundos)
             print(f"Resolvendo modelo (limite: 20 minutos)...")
-            resultados = solve_alwabp_gurobi(inst, time_limit=10)
+            resultados = solve_alwabp_gurobi(inst, time_limit=30)
             
             # Salvar resultados em arquivo
             with open(output_file, 'w', encoding='utf-8') as f:

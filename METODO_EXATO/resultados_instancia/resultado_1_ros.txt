@@ -7,8 +7,8 @@ Status: Solução ótima encontrada
 Tempo de ciclo: 20.0
 Valor objetivo: 20.0
 Gap: 0.0000%
-Tempo de execução: 0.21 segundos
-Limite de tempo: 10 segundos
+Tempo de execução: 0.22 segundos
+Limite de tempo: 30 segundos
 
 Trabalhador por estação:
  Estaçao 1: trabalhador 3

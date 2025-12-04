@@ -202,7 +202,7 @@ def consolidate_results(temp_file: str, summary_file: str, optimal_values: dict)
             
             # Calcular gap em relação ao ótimo
             if optimal_value and optimal_value > 0:
-                gap_to_optimal_pct = ((best_sf - optimal_value) / optimal_value) * 100
+                gap_to_optimal_pct = ((best_sf - optimal_value) / best_sf) * 100
                 f.write(f"{instance_name};{best_seed};{best_si};{best_sf};{optimal_value};{total_time:.2f};{improvement_pct:.2f};{gap_to_optimal_pct:.2f}\n")
             else:
                 f.write(f"{instance_name};{best_seed};{best_si};{best_sf};NA;{total_time:.2f};{improvement_pct:.2f};NA\n")

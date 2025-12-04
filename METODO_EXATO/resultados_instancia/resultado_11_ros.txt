@@ -8,7 +8,7 @@ Tempo de ciclo: 30.0
 Valor objetivo: 30.0
 Gap: 0.0000%
 Tempo de execução: 0.09 segundos
-Limite de tempo: 10 segundos
+Limite de tempo: 30 segundos
 
 Trabalhador por estação:
  Estaçao 1: trabalhador 4
