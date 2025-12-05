@@ -5,52 +5,52 @@ SOLUÇÃO ALWABP via GUROBI
 ------------------------------------------------------------
 Status: Time limit atingido (20 minutos)
 Melhor solução encontrada até o momento
-Tempo de ciclo: 96.0
-Valor objetivo: 96.0
-Gap: 98.9583%
-Tempo de execução: 10.03 segundos
-Limite de tempo: 10 segundos
+Tempo de ciclo: 29.0
+Valor objetivo: 29.0
+Gap: 44.8276%
+Tempo de execução: 1200.23 segundos
+Limite de tempo: 1200 segundos
 
 Trabalhador por estação:
- Estaçao 1: trabalhador 5
- Estaçao 2: trabalhador 4
- Estaçao 3: trabalhador 3
- Estaçao 4: trabalhador 8
- Estaçao 5: trabalhador 9
- Estaçao 6: trabalhador 2
- Estaçao 7: trabalhador 1
- Estaçao 8: trabalhador 10
- Estaçao 9: trabalhador 6
- Estaçao 10: trabalhador 11
- Estaçao 11: trabalhador 7
+ Estaçao 1: trabalhador 6
+ Estaçao 2: trabalhador 2
+ Estaçao 3: trabalhador 4
+ Estaçao 4: trabalhador 10
+ Estaçao 5: trabalhador 7
+ Estaçao 6: trabalhador 3
+ Estaçao 7: trabalhador 5
+ Estaçao 8: trabalhador 9
+ Estaçao 9: trabalhador 1
+ Estaçao 10: trabalhador 8
+ Estaçao 11: trabalhador 11
 
 Tarefas por estação:
- Estaçao 1 (trabalhador 5): []
-  Tempo total na estação: 0
- Estaçao 2 (trabalhador 4): [1, 2, 5, 6, 9, 15, 20, 27, 35, 42]
-  Tempo total na estação: 96.0
- Estaçao 3 (trabalhador 3): [3, 7, 10, 12, 17, 18, 23, 36, 43, 47, 49, 50, 55]
-  Tempo total na estação: 82.0
- Estaçao 4 (trabalhador 8): [13, 22, 40, 46, 59]
-  Tempo total na estação: 35.0
- Estaçao 5 (trabalhador 9): [4, 19, 48, 52, 56, 60, 62]
-  Tempo total na estação: 73.0
- Estaçao 6 (trabalhador 2): [16, 21, 24, 25, 26, 28, 30, 31, 32, 33, 37, 41, 64]
-  Tempo total na estação: 81.0
- Estaçao 7 (trabalhador 1): [8, 29, 45, 66]
-  Tempo total na estação: 48.0
- Estaçao 8 (trabalhador 10): [39, 53, 58, 67, 68, 69, 75]
-  Tempo total na estação: 88.0
- Estaçao 9 (trabalhador 6): [11, 44, 54, 73]
-  Tempo total na estação: 34.0
- Estaçao 10 (trabalhador 11): [14, 38, 51, 57, 63, 70, 71, 72]
-  Tempo total na estação: 60.0
- Estaçao 11 (trabalhador 7): [34, 61, 65, 74]
-  Tempo total na estação: 17.0
+ Estaçao 1 (trabalhador 6): [1, 4, 5, 7, 14]
+  Tempo total na estação: 29.0
+ Estaçao 2 (trabalhador 2): [2, 3, 6, 9, 15, 16]
+  Tempo total na estação: 26.0
+ Estaçao 3 (trabalhador 4): [20, 21, 27, 35, 36, 42]
+  Tempo total na estação: 29.0
+ Estaçao 4 (trabalhador 10): [12, 38, 40, 46, 47, 52]
+  Tempo total na estação: 27.0
+ Estaçao 5 (trabalhador 7): [11, 17, 29, 43, 49, 50, 55, 56, 61]
+  Tempo total na estação: 29.0
+ Estaçao 6 (trabalhador 3): [10, 18, 23, 26, 59, 62, 66, 68, 74]
+  Tempo total na estação: 28.0
+ Estaçao 7 (trabalhador 5): [13, 19, 31, 32, 53, 71, 75]
+  Tempo total na estação: 27.0
+ Estaçao 8 (trabalhador 9): [8, 22, 58, 64, 67, 72, 73]
+  Tempo total na estação: 29.0
+ Estaçao 9 (trabalhador 1): [44, 63]
+  Tempo total na estação: 27.0
+ Estaçao 10 (trabalhador 8): [24, 25, 28, 34, 48, 54, 65, 70]
+  Tempo total na estação: 28.0
+ Estaçao 11 (trabalhador 11): [30, 33, 37, 39, 41, 45, 51, 57, 60, 69]
+  Tempo total na estação: 29.0
 
 ANÁLISE DE BALANCEAMENTO:
-  Tempo máximo na estação: 96.0
-  Tempo mínimo na estação: 0
-  Tempo médio nas estações: 55.82
-  Desbalanceamento: 71.99%
+  Tempo máximo na estação: 29.0
+  Tempo mínimo na estação: 26.0
+  Tempo médio nas estações: 28.00
+  Desbalanceamento: 3.57%
 ============================================================
