@@ -1,308 +1,275 @@
-# Trabalho Prático Final - GCC118/PCC540: ALWABP com VNS
+# Trabalho Prático Final – GCC118 / PCC540
 
-## Sumário
+**ALWABP – Método Exato (Gurobi) e Metaheurística VNS**
 
-- [1. Introdução](#1-introdução)
-- [2. Formulação MILP](#2-formulação-do-problema-como-programa-linear-inteiro-misto-milp)
-- [3. Algoritmo Proposto: VNS](#3-algoritmo-proposto-variable-neighborhood-search-vns)
-- [4. Resultados Obtidos](#4-resultados-obtidos-com-análise)
-- [5. Como Executar o Programa](#5-como-executar-o-programa)
-- [6. Conclusão](#6-conclusão)
-- [7. Bibliografia](#7-bibliografia)
+Este repositório contém a implementação completa do trabalho prático final da disciplina, abordando o **Problema de Balanceamento de Linha de Montagem com Designação de Trabalhadores (ALWABP)** por meio de:
+
+- **Método exato**, via formulação em MILP e resolução com **Gurobi**;
+- **Método heurístico**, baseado na metaheurística **Variable Neighborhood Search (VNS)**;
+- **Pipeline de experimentos**, consolidando resultados de ambas as abordagens em um **único CSV final** para análise.
+
+> Este README é focado na **documentação do código** (estrutura, execução, arquivos gerados).  
+> Toda a parte teórica mais detalhada (formulação MILP, análise completa, bibliografia, etc.) está no `RelatorioTrabalhoPM.pdf`.
 
 ---
 
-## 1. Introdução
+## 1. Visão Geral do Projeto
 
-O presente trabalho visa a resolução do **Problema de Balanceamento de Linhas de Produção e Designação de Trabalhadores (ALWABP)**, um problema de otimização combinatória que busca minimizar o tempo de ciclo de uma linha de montagem ao mesmo tempo em que considera a alocação de trabalhadores com diferentes tempos de execução e restrições de incapacidade. Para tal, foi utilizada a metaheurística **Variable Neighborhood Search (VNS)**.
+O projeto está dividido em três blocos principais:
 
-O ALWABP, introduzido por Miralles et al. (2007), é um problema complexo que generaliza o problema clássico de balanceamento de linha de montagem ao incorporar a heterogeneidade dos trabalhadores. A solução requer a definição de:
+1. **Método Exato (`METODO_EXATO/`)**
 
-1.  Uma atribuição de tarefas a estações.
-2.  Uma atribuição de trabalhadores a estações.
+   - Lê as instâncias do problema ALWABP.
+   - Resolve cada instância com o **Gurobi** (modelo MILP).
+   - Gera arquivos `.txt` com o resumo dos resultados por instância.
 
-O objetivo é minimizar o tempo de ciclo (C_max), que é o tempo máximo de processamento entre todas as estações.
+2. **Método Heurístico (`METODO_HEURISTICA/`)**
 
-## 2. Formulação do Problema como Programa Linear Inteiro Misto (MILP)
+   - Implementa a metaheurística **VNS** para o ALWABP.
+   - Executa múltiplas replicações por instância, com seeds diferentes e limite de tempo por instância.
+   - Consolida os resultados em um arquivo `summary_results.csv`.
 
-A formulação a seguir representa o ALWABP como um modelo de Programação Linear Inteira Mista (MILP), conforme solicitado.
+3. **Geração do CSV Final (raiz do projeto)**
+   - Script `gera_csv_final.py` que:
+     - Lê os resultados da heurística (`summary_results.csv`).
+     - Lê os resultados do Gurobi (`resultado_*.txt`).
+     - Gera o arquivo **`csv_final.csv`** combinando, para cada instância, os dados do exato e da heurística.
 
-# Formulação do Problema ALWABP como Programa Linear Inteiro Misto (MILP)
+---
 
-O problema ALWABP (Assembly Line Worker Assignment and Balancing Problem) consiste em designar tarefas a estações de trabalho e alocar trabalhadores a essas estações, minimizando o tempo de ciclo da linha de montagem, sujeito a restrições de precedência, capacidade do trabalhador e tempo de ciclo.
+## 2. Estrutura do Repositório
 
-## Conjuntos e Parâmetros
-
-| Símbolo         | Descrição                                                                                         |
-| :-------------- | :------------------------------------------------------------------------------------------------ |
-| N = {1, ..., n} | Conjunto de tarefas.                                                                              |
-| W = {1, ..., k} | Conjunto de trabalhadores.                                                                        |
-| S = {1, ..., m} | Conjunto de estações de trabalho. Assume-se m=k (uma estação por trabalhador).                    |
-| P               | Conjunto de pares de precedência (i, j) em N x N, onde i deve preceder j.                         |
-| t_wi            | Tempo de execução da tarefa i por trabalhador w.                                                  |
-| I_w             | Conjunto de tarefas que o trabalhador w é incapaz de executar (t_wi = infinito \forall i em I_w). |
-| M               | Uma constante grande (Big M).                                                                     |
-
-## Variáveis de Decisão
-
-| Símbolo | Tipo          | Descrição                                                                                                                              |
-| :------ | :------------ | :------------------------------------------------------------------------------------------------------------------------------------- |
-| C_max   | Real positivo | Tempo de ciclo da linha de produção (a ser minimizado).                                                                                |
-| y_si    | Binária       | 1 se a tarefa i é designada à estação s. 0 caso contrário.                                                                             |
-| z_ws    | Binária       | 1 se o trabalhador w é alocado à estação s. 0 caso contrário.                                                                          |
-| u_wis   | Binária       | Variável auxiliar para linearizar o produto y_si \* z_ws. 1 se a tarefa i é atribuída à estação s e o trabalhador w está na estação s. |
-
-## Função Objetivo
-
-Minimizar o tempo de ciclo da linha de produção:
-
-```math
-min C_{max}
-```
-
-## Restrições
-
-### 1. Designação de Tarefas e Trabalhadores
-
-Cada tarefa deve ser designada a exatamente uma estação:
-
-```math
-∑_{s ∈ S} y_{si} = 1   \forall i ∈ N   (R1)
-```
-
-Cada trabalhador deve ser alocado a exatamente uma estação:
-
-```math
-∑_{s ∈ S} z_{ws} = 1   \forall w ∈ W   (R2)
-```
-
-Cada estação deve ter exatamente um trabalhador alocado:
-
-```math
-∑_{w ∈ W} z_{ws} = 1   \forall s ∈ S   (R3)
-```
-
-### 2. Linearização e Restrição de Incapacidade
-
-Linearização do produto y_si \* z_ws através da variável u_wis:
-
-```math
-u_{wis} ≤ y_{si}   \forall i ∈ N, w ∈ W, s ∈ S   (R4.1)
-u_{wis} ≤ z_{ws}   \forall i ∈ N, w ∈ W, s ∈ S   (R4.2)
-u_{wis} ≥ y_{si} + z_{ws} - 1   \forall i ∈ N, w ∈ W, s ∈ S   (R4.3)
-```
-
-Restrição de Incapacidade: Se o trabalhador w é incapaz de executar a tarefa i (ou seja, t_wi = infinito), então u_wis deve ser zer \foralls os s:
-
-```math
-u_{wis} = 0   \forall i ∈ I_w, w ∈ W, s ∈ S   (R5)
-```
-
-_Nota: Esta restrição pode ser simplificada se a matriz t_wi for tratada no modelo, mas a formulação explícita é mais clara._
-
-### 3. Restrições de Tempo de Ciclo
-
-O tempo total de trabalho em cada estação s deve ser menor ou igual ao tempo de ciclo C_max:
-
-```math
-∑_{i ∈ N} ∑_{w ∈ W} t_{wi} u_{wis} ≤ C_max   \forall s ∈ S   (R6)
-```
-
-### 4. Restrições de Precedência
-
-Se a tarefa i precede a tarefa j ((i, j) ∈ P), então a estação que executa i deve ser anterior ou igual à estação que executa j:
-
-```math
-∑_{s ∈ S} s * y_{si} ≤ ∑_{s ∈ S} s * y_{sj}   \forall (i, j) ∈ P   (R7)
-```
-
-### 5. Domínio das Variáveis
-
-```math
-y_{si} ∈ {0, 1}, z_{ws} ∈ {0, 1}, u_{wis} ∈ {0, 1}, C_max ≥ 0   (R8)
-```
-
-## 3. Algoritmo Proposto: Variable Neighborhood Search (VNS)
-
-A metaheurística escolhida para resolver o ALWABP é o **Variable Neighborhood Search (VNS)**. O VNS é baseado na ideia de mudança sistemática de vizinhanças (neighborhoods) para a busca local e global.
-
-### 3.1. Representação da Solução
-
-Uma solução S é definida por dois vetores principais:
-
-1.  **Atribuição de Tarefas a Estações (Y):** Um vetor onde Y[i] é a estação à qual a tarefa i é atribuída.
-2.  **Atribuição de Trabalhadores a Estações (Z):** Um vetor onde Z[s] é o trabalhador alocado à estação s.
-
-### 3.2. Função de Avaliação
-
-A função objetivo é o tempo de ciclo (C_max), calculado como o tempo máximo de processamento entre todas as estações. A avaliação também verifica a factibilidade da solução:
-
-1.  \*_Factibilidade de Precedência:_ \forall par de precedência (i, j), a estação de i deve ser menor ou igual à estação de j.
-2.  **Factibilidade de Incapacidade:** Nenhuma tarefa i pode ser atribuída a uma estação s cujo trabalhador alocado Z[s] é incapaz de executá-la (tempo de execução t\_{Z[s], i} = infinito).
-
-Soluções infactíveis são penalizadas com um C_max = infinito.
-
-### 3.3. Geração da Solução Inicial
-
-A solução inicial é gerada por uma heurística gulosa:
-
-1.  **Alocação de Trabalhadores:** Uma permutação aleatória dos trabalhadores é atribuída às estações.
-2.  **Alocação de Tarefas:** As tarefas são percorridas em ordem topológica (respeitando precedências) e atribuídas à primeira estação factível que satisfaça as restrições de incapacidade e precedência.
-
-### 3.4. Estrutura de Vizinhanças (N_k)
-
-O VNS utiliza uma sequência de K_max=3 vizinhanças:
-
-| k   | Vizinhança (N_k)  | Descrição                                                   |
-| :-- | :---------------- | :---------------------------------------------------------- |
-| 1   | Task Swap         | Troca as estações de duas tarefas aleatórias.               |
-| 2   | Task Reassignment | Move uma tarefa aleatória para uma estação diferente.       |
-| 3   | Worker Swap       | Troca os trabalhadores alocados a duas estações aleatórias. |
-
-### 3.5. Busca Local (Variable Neighborhood Descent - VND)
-
-O VND é aplicado após a perturbação (Shaking) e utiliza uma sequência de vizinhanças de busca local (L_max=2):
-
-| l   | Vizinhança de Busca Local | Estratégia                                                                                      |
-| :-- | :------------------------ | :---------------------------------------------------------------------------------------------- |
-| 1   | Task Reassignment         | Busca o primeiro movimento de reatribuição de tarefa que melhora a solução (First Improvement). |
-| 2   | Worker Swap               | Busca o primeiro movimento de troca de trabalhadores que melhora a solução (First Improvement). |
-
-O VND reinicia a busca na vizinhança l=1 sempre que uma melhoria é encontrada.
-
-### 3.6. Critério de Parada
-
-O critério de parada é o número máximo de iterações (MAX_ITER) do ciclo principal do VNS.
-
-## 4. Resultados Obtidos com Análise
-
-**(ESTA SEÇÃO DEVE SER PREENCHIDA PELO USUÁRIO APÓS A EXECUÇÃO DO SCRIPT `run_all_vns.py`)**
-
-Esta seção deve apresentar e analisar os resultados computacionais obtidos pela execução da metaheurística VNS, conforme as regras do trabalho.
-
-### 4.1. Configuração Experimental
-
-- **Hardware:** (Preencher)
-- **Software:** Python 3.x
-- **Parâmetros do VNS:** MAX_ITER=50, K_max=3.
-- **Replicações:** 5 replicações por instância com sementes diferentes.
-
-### 4.2. Tabela de Resultados
-
-A tabela de resultados deve seguir o formato exigido, apresentando a média das 5 replicações:
-
-| Instância | SI (Média)  | SF (Média)  | Desvio % (SI-SF)/SI | Desvio % (SF-Ótimo) | Tempo VNS (s) | Tempo Solver (s) |
-| :-------- | :---------- | :---------- | :------------------ | :------------------ | :------------ | :--------------- |
-| 1_hes     | (Preencher) | (Preencher) | (Preencher)         | (Preencher)         | (Preencher)   | (Preencher)      |
-| ...       | ...         | ...         | ...                 | ...                 | ...           | ...              |
-
-### 4.3. Análise dos Resultados
-
-**(Preencher com a análise)**
-
-## 5. Como Executar o Programa
-
-Siga o passo a passo abaixo para executar corretamente o VNS e gerar os resultados.
-
-### 5.1. Requisitos
-
-- Python **3.10+**
-
-Instalação das dependências:
-
-```bash
-pip install bibliotecas_necessarias
-```
-
-### 5.2. Estrutura esperada das pastas
+A estrutura resumida do projeto é:
 
 ```bash
 PM_TRABALHO/
 │
 ├── METODO_EXATO/
-│ ├── resultados_instancia/
-│ ├── alwabp_gurobi.py
-│ ├── file_handler.py
-│ └── run_gurobi.py
+│   ├── instancias_teste_relatorio/     # Instâncias utilizadas com o Gurobi
+│   ├── resultados_instancia/           # Saída de resultados do Gurobi
+│   └── src/
+│       ├── alwabp_gurobi.py            # Modelo MILP e chamada do solver
+│       ├── file_handler.py             # Funções auxiliares de leitura/gravação
+│       └── run_gurobi.py               # Script principal para rodar todas as instâncias
 │
 ├── METODO_HEURISTICA/
-│ ├── testes_relatorio/
-│ ├── alwabp_vns.py
-│ ├── gerar_csv_vns.py
-│ ├── instances.csv
-│ ├── resultado_vns.csv
-│ ├── run_all_vns_parallel.py
-│ └── README.md
+│   ├── src/
+│   │   ├── alwabp_vns.py               # Implementação da VNS para o ALWABP
+│   │   ├── config.py                   # Parâmetros globais da heurística (seeds, limites, etc.)
+│   │   ├── file_handler.py             # Funções auxiliares (operações de arquivos: instâncias, summary, etc.)
+│   │   ├── gerar_csv_vns.py            # (opcional) Geração/ajuste de CSVs intermediários
+│   │   ├── run_all_vns_parallel.py     # Roda VNS em todas as instâncias (execução paralela por instância)
+│   │   └── run_vns.py                  # Wrapper para rodar uma instância/replicação (subprocess)
+│   │
+│   ├── testes_relatorio/
+│   │   ├── instancias_teste_relatorio/ # Instâncias usadas pela heurística
+│   │   ├── vns_resultados_teste_relatorio/  # Arquivos de solução por instância/replicação
+│   │   └── summary_results.csv         # Consolidação dos resultados da VNS por instância
+│   │
+│   ├── instances.csv                   # Arquivo com valores ótimos/upper bounds por instância
+│   └── resultado_vns.csv               # (opcional) Outras saídas consolidadas da heurística
 │
-├── gera_csv_final.py
-├── csv_final.csv
+├── gera_csv_final.py                   # Combina VNS + Gurobi em um único csv_final.csv
+├── csv_final.csv                       # Arquivo final para análise comparativa (heurística x exato)
 └── README.md
 ```
 
-### 5.3. Executar instâncias (heuristica)
+---
+
+## 3. Dependências e Ambiente
+
+### 3.1. Requisitos básicos
+
+- **Python 3.10+**
+- Bibliotecas Python padrão (já utilizadas no código):  
+  `os`, `csv`, `time`, `concurrent.futures`, `subprocess`, `re`, etc.
+
+### 3.2. Solver Gurobi
+
+Para executar o método exato:
+
+- Gurobi instalado e configurado no sistema;
+- Licença acadêmica ou válida ativa;
+- Biblioteca `gurobipy` instalada no ambiente Python.
+
+---
+
+## 4. Método Heurístico – VNS (METODO_HEURISTICA)
+
+### 4.1. Arquivo de configuração (`config.py`)
+
+Os principais parâmetros da heurística são definidos em `METODO_HEURISTICA/src/config.py`, por exemplo:
+
+- `NUM_REPLICATIONS`  
+  Número máximo de replicações por instância (execuções independentes).
+
+- `SEEDS`  
+  Lista de sementes aleatórias. A instância é rodada várias vezes, uma seed por replicação.
+
+- `TIME_LIMIT`  
+  **Limite de tempo total por instância** (em segundos).
+
+  - O tempo é medido desde o início da primeira replicação dessa instância.
+  - Antes de iniciar cada nova replicação, é verificado se o tempo decorrido já ultrapassou o limite.
+  - Se o limite é atingido, a instância é interrompida (sem novas replicações).
+
+- `VNS_MAX_ITER`  
+  Número máximo de iterações do laço principal do VNS.
+
+- `VNS_K_MAX`  
+  Número máximo de estruturas de vizinhança exploradas no VNS.
+
+Esses valores podem ser ajustados diretamente no arquivo para facilitar experimentos diferentes.
+
+### 4.2. Execução da heurística em todas as instâncias
+
+A partir da pasta `METODO_HEURISTICA/src`:
 
 ```bash
-cd METODO_HEURISTICA
-
-python run_all_vns.py
+cd METODO_HEURISTICA/src
+python run_all_vns_parallel.py
 ```
 
 Esse script:
 
-- lê todas as instâncias dentro de `teste_relatorio/instancias_teste_relatorio`;
-- executa o VNS diversas vezes com seeds diferentes;
-- salva os resultados na pasta `teste_relatorio/vns_resultados_teste_relatorio/`.
+1. Lê as instâncias em `../testes_relatorio/instancias_teste_relatorio/`;
+2. Para cada instância:
+   - Executa até `NUM_REPLICATIONS` replicações, cada uma com uma seed da lista `SEEDS`;
+   - Respeita o `TIME_LIMIT` total daquela instância;
+   - Salva as soluções detalhadas (por replicação) em  
+     `../testes_relatorio/vns_resultados_teste_relatorio/`;
+3. Gera e grava o arquivo consolidado `../testes_relatorio/summary_results.csv`, com **uma linha por instância**, contendo:
+   - `Instance`
+   - `Best_Seed` (seed que produziu o melhor SF)
+   - `SI` (solução inicial da heurística)
+   - `SF` (melhor solução final)
+   - `SO` (ótimo/upper bound da instância, lido de `instances.csv`)
+   - `Total_Time_s` (tempo total da heurística para aquela instância)
+   - `Improvement_%` = \(100 \times (SI - SF) / SI\)
+   - `Gap_to_Optimal_%` = \(100 \times (SF - SO) / SO\)
 
-### 5.4. Gerar o CSV final consolidado
+> Observação importante:  
+> Embora as instâncias sejam executadas em paralelo (cada uma em um processo diferente),  
+> o tempo armazenado para cada instância (`Total_Time_s`) é sempre **medido por instância**, somando apenas suas replicações.
 
-Após rodar tudo:
+---
+
+## 5. Método Exato – Gurobi (METODO_EXATO)
+
+### 5.1. Instâncias e saídas
+
+Na pasta `METODO_EXATO`:
+
+- `instancias_teste_relatorio/`  
+  Contém os arquivos de instância do ALWABP que serão resolvidos pelo Gurobi.
+
+- `resultados_instancia/`  
+  Recebe os arquivos de saída do solver no formato:  
+  `resultado_<nome_da_instancia>.txt`
+
+Cada arquivo `resultado_*.txt` contém, entre outras informações:
+
+- Valor objetivo encontrado (`Valor objetivo: ...`);
+- Tempo de execução (`Tempo de execução: ...`);
+- Gap reportado pelo solver (`Gap: ... %`), quando aplicável.
+
+### 5.2. Execução do solver para todas as instâncias
+
+A partir de `METODO_EXATO/src`:
 
 ```bash
-python gerar_csv_vns.py
-```
-
-Ele gera e atualiza arquivos como:
-
-- `summary_results.csv`;
-- `resultado_vns.csv`.
-
-### 5.5. Executar instâncias (solver)
-
-```bash
-cd METODO_EXATO
-
+cd METODO_EXATO/src
 python run_gurobi.py
-
 ```
 
-Esse script realiza as seguintes operações:
+Esse script:
 
-- **Leitura das instâncias**: O script começa lendo todas as instâncias de problema localizadas na pasta `instancias_teste_relatorio/`. Cada instância contém dados necessários para rodar o modelo de otimização.
+1. Lê todas as instâncias em `../instancias_teste_relatorio/`;
+2. Para cada instância:
+   - Monta e resolve o modelo MILP no Gurobi;
+   - Respeita o limite de tempo configurado no código (por instância);
+   - Salva o arquivo `resultado_<instancia>.txt` em `../resultados_instancia/`.
 
-- **Execução do Solver (Gurobi)**: O script utiliza o Gurobi Optimizer para resolver o problema de otimização. O solver é executado por no máximo 20 minutos, respeitando a limitação do tempo de execução configurado.
+---
 
-- **Licença Acadêmica**: Caso você esteja utilizando uma versão acadêmica do Gurobi, o script fará uso da licença do Gurobi Optimizer. A versão do solver utilizada neste caso é o Gurobi Optimizer versão 13.0.0 (build v13.0.0rc1), que é compatível com sistemas Windows 11 e acima.
+## 6. Geração do CSV Final (`csv_final.csv`)
 
-- **Salvamento dos Resultados**: O script salva a melhor solução obtida, juntamente com as seguintes métricas de desempenho:
+Após rodar:
 
-  - **Solução Ótima Obtida**: O valor da melhor solução encontrada para o problema.
-  - **Gap de Distância do Ótimo**: A diferença entre a melhor solução encontrada e o valor ótimo (se disponível).
-  - **Rotas**: Detalhes sobre as rotas geradas, incluindo o número de rotas e a alocação de tarefas aos trabalhadores.
-  - **Tempo de Execução**: O tempo total que o Gurobi levou para processar e encontrar a solução, com uma limitação de 20 minutos por execução.
+- a heurística (VNS) e gerar `METODO_HEURISTICA/testes_relatorio/summary_results.csv`,
+- o exato (Gurobi) e gerar `METODO_EXATO/resultados_instancia/resultado_*.txt`,
 
-- **Armazenamento**: Todos os resultados são salvos na pasta `resultados_instancias/` para posterior análise e comparação com outras instâncias.
+podemos consolidar tudo em um **único arquivo CSV final** na raiz do projeto.
 
-## 6. Conclusão
+### 6.1. Script `gera_csv_final.py`
 
-**(Preencher com a conclusão)**
+Na raiz do projeto (`PM_TRABALHO/`):
 
-## 7. Bibliografia
+```bash
+python gera_csv_final.py
+```
 
-**(Preencher com as referências, incluindo a referência original do ALWABP)**
+Esse script:
 
-- Miralles, C., Garcia-Sabater, J. P., Andres, C., & Cardos, M. (2007). Advantages of assembly lines in sheltered work centres for disabled. A case study. International Journal of Production Economics, 110(1-2), 187-197.
-- Hansen, P., & Mladenović, N. (2001). Variable neighborhood search: Principles and applications. _European Journal of Operational Research, 130_(3), 449-467.
-- Gendreau, M., & Potvin, J. Y. (Eds.). (2019). _Handbook of Metaheuristics_ (3rd ed.). Springer.
-- Mladenović, N., & Hansen, P. (1997). Variable neighborhood search. _Computers & Operations Research, 24_(11), 1097-1100.
-- Torres, P., & Lima, C. (2018). _Metaheuristics for Logistics_. Wiley.
-- Knuth, D. E. (1997). _The Art of Computer Programming, Volume 2: Seminumerical Algorithms_ (3rd ed.). Addison-Wesley.
+1. Lê:
+   - `METODO_HEURISTICA/testes_relatorio/summary_results.csv` (resultados da VNS);
+   - `METODO_EXATO/resultados_instancia/resultado_*.txt` (resultados do Gurobi).
+2. Extrai dos arquivos do Gurobi:
+   - `sol_gurobi` → valor objetivo encontrado;
+   - `time_gurobi` → tempo de execução;
+   - `gap_gurobi` → % de gap reportado.
+3. Gera o arquivo **`csv_final.csv`** na raiz, com colunas na seguinte ordem:
+
+```text
+Instance;
+Best_Seed;
+SI;
+SF;
+SO;
+SOL_GUROBI;
+TIME_GUROBI;
+GAP_GUROBI_OPT;
+Total_Time_s;
+Improvement_% ;
+Gap_to_Optimal_%
+```
+
+onde:
+
+- **Instance**: nome da instância (ex.: `11_hes`, `52_wee`);
+- **Best_Seed**: semente da melhor replicação da VNS;
+- **SI**: solução inicial da heurística;
+- **SF**: melhor solução final da heurística;
+- **SO**: solução ótima/UB de referência;
+- **SOL_GUROBI**: solução obtida pelo Gurobi;
+- **TIME_GUROBI**: tempo do Gurobi para aquela instância;
+- **GAP_GUROBI_OPT**: gap percentual usado para o solver (quando extraído);
+- **Total_Time_s**: tempo total da heurística VNS (por instância);
+- **Improvement\_%**: melhoria percentual da heurística em relação à solução inicial;
+- **Gap_to_Optimal\_%**: gap percentual da solução heurística em relação ao ótimo/UB.
+
+Ao final, o script ainda imprime no terminal algumas estatísticas:
+
+- Quantas instâncias têm solução do Gurobi;
+- Em quantas ele atingiu exatamente o valor ótimo (`SOL_GUROBI == SO`);
+- Estatísticas de tempo do solver e da heurística (média, mínimo, máximo, total).
+
+---
+
+## 7. Observações Finais
+
+- A parametrização da heurística (número de iterações, vizinhanças, seeds e limite de tempo) está centralizada em `METODO_HEURISTICA/src/config.py`, facilitando a realização de diferentes cenários de teste.
+- A comparação entre heurística e método exato é feita **por instância**, em termos de:
+  - Valor da melhor solução (SF x SO x SOL_GUROBI);
+  - Melhor seed;
+  - Tempo computacional de cada abordagem;
+  - Melhorias e gaps percentuais.
+
+Esse README serve como guia prático para compreender a organização do projeto e reproduzir todos os experimentos necessários para o relatório e análise de resultados.
+
+---
+
+## 8. Autores
+
+- Caio Bueno Finocchio Martins – [@caiobfm](https://github.com/caiobfm)
+- Tobias Maugus Bueno Cougo – [@tobiasmaugus](https://github.com/tobiasmaugus)
