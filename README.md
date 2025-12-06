@@ -42,7 +42,7 @@ O projeto está dividido em três blocos principais:
 A estrutura resumida do projeto é:
 
 ```bash
-PM_TRABALHO/
+alwabp-gurobi-vns/
 │
 ├── METODO_EXATO/
 │   ├── instancias_teste_relatorio/     # Instâncias utilizadas com o Gurobi
