@@ -78,65 +78,75 @@ def process_gurobi_results(gurobi_dir, instance_names):
 
 def generate_final_csv(summary_csv_path, gurobi_dir, output_csv_path):
     """
-    Gera o CSV final combinando dados do VNS e do Gurobi.
+    Gera o CSV final combinando dados do VNS (heurística) e do Gurobi.
+    A ordem final das colunas é:
+    Instance;Best_Seed;SI;SF;SO;SOL_GUROBI;TIME_GUROBI;GAP_GUROBI_OPT;Total_Time_s;Improvement_% ;Gap_to_Optimal_%
     """
-    # Ler o summary_results.csv
     vns_data = []
     instance_names = set()
     
+    # Ler summary_results.csv gerado pela heurística
     with open(summary_csv_path, 'r', encoding='utf-8') as f:
         reader = csv.DictReader(f, delimiter=';')
-        fieldnames = reader.fieldnames
-        
-        # Coletar dados e nomes das instâncias
         for row in reader:
             vns_data.append(row)
-            instance_name = row['Instance'].strip()
-            instance_names.add(instance_name)
+            instance_names.add(row['Instance'].strip())
     
     # Processar resultados do Gurobi
-    print(f"Processando resultados do Gurobi de {gurobi_dir}...")
     gurobi_data = process_gurobi_results(gurobi_dir, instance_names)
-    print(f"Encontrados dados do Gurobi para {len(gurobi_data)} instâncias")
     
-    # Preparar campo para CSV final
-    new_fieldnames = list(fieldnames)
-    # Inserir novas colunas após a coluna SO (Solução Ótima)
-    # Encontrar índice da coluna SO
-    if 'SO' in new_fieldnames:
-        so_index = new_fieldnames.index('SO')
-        # Inserir após SO
-        new_fieldnames.insert(so_index + 1, 'SOL_GUROBI')
-        new_fieldnames.insert(so_index + 2, 'TIME_GUROBI')
-        new_fieldnames.insert(so_index + 3, 'GAP_GUROBI_OPT')
-    else:
-        # Se não encontrar SO, adicionar no final
-        new_fieldnames.extend(['SOL_GUROBI', 'TIME_GUROBI', 'GAP_GUROBI_OPT'])
+    # Definir explicitamente a ordem das colunas no CSV final
+    final_fieldnames = [
+        'Instance',         # Nome da instância
+        'Best_Seed',        # Semente que gerou o melhor SF na heurística
+        'SI',               # Solução inicial (heurística)
+        'SF',               # Melhor solução final (heurística)
+        'SO',               # Valor ótimo ou upper bound
+        'SOL_GUROBI',       # Valor objetivo obtido pelo Gurobi
+        'TIME_GUROBI',      # Tempo de execução do Gurobi
+        'GAP_GUROBI_OPT',   # Gap percentual do Gurobi em relação ao ótimo
+        'Total_Time_s',     # Tempo total gasto na heurística para essa instância
+        'Improvement_%',    # Melhoria da heurística (SI → SF)
+        'Gap_to_Optimal_%'  # Gap da melhor heurística em relação ao ótimo
+    ]
     
-    # Escrever CSV final
+    # Escrever o CSV final com a nova ordem de colunas
     with open(output_csv_path, 'w', newline='', encoding='utf-8') as f:
-        writer = csv.DictWriter(f, fieldnames=new_fieldnames, delimiter=';')
+        writer = csv.DictWriter(f, fieldnames=final_fieldnames, delimiter=';')
         writer.writeheader()
         
         for row in vns_data:
             instance_name = row['Instance'].strip()
-            new_row = row.copy()
             
-            # Adicionar dados do Gurobi se disponíveis
+            # Montar linha na ordem correta e preencher valores ausentes com 'NA'
+            new_row = {
+                'Instance': instance_name,
+                'Best_Seed': row.get('Best_Seed', 'NA'),
+                'SI': row.get('SI', 'NA'),
+                'SF': row.get('SF', 'NA'),
+                'SO': row.get('SO', 'NA'),
+                'SOL_GUROBI': 'NA',
+                'TIME_GUROBI': 'NA',
+                'GAP_GUROBI_OPT': 'NA',
+                'Total_Time_s': row.get('Total_Time_s', 'NA'),
+                'Improvement_%': row.get('Improvement_%', 'NA'),
+                'Gap_to_Optimal_%': row.get('Gap_to_Optimal_%', 'NA')
+            }
+            
+            # Sobrescrever valores do Gurobi se existirem
             if instance_name in gurobi_data:
-                gurobi_info = gurobi_data[instance_name]
-                new_row['SOL_GUROBI'] = gurobi_info['sol_gurobi'] if gurobi_info['sol_gurobi'] is not None else 'NA'
-                new_row['TIME_GUROBI'] = gurobi_info['time_gurobi'] if gurobi_info['time_gurobi'] is not None else 'NA'
-                new_row['GAP_GUROBI_OPT'] = gurobi_info['gap_gurobi'] if gurobi_info['gap_gurobi'] is not None else 'NA'
-            else:
-                new_row['SOL_GUROBI'] = 'NA'
-                new_row['TIME_GUROBI'] = 'NA'
-                new_row['GAP_GUROBI_OPT'] = 'NA'
+                gdata = gurobi_data[instance_name]
+                if gdata['sol_gurobi'] is not None:
+                    new_row['SOL_GUROBI'] = gdata['sol_gurobi']
+                if gdata['time_gurobi'] is not None:
+                    new_row['TIME_GUROBI'] = gdata['time_gurobi']
+                if gdata['gap_gurobi'] is not None:
+                    new_row['GAP_GUROBI_OPT'] = gdata['gap_gurobi']
             
             writer.writerow(new_row)
     
     print(f"CSV final gerado: {output_csv_path}")
-    print(f"Total de instâncias processadas: {len(vns_data)}")
+
 
 def main():
     # Configurar caminhos
@@ -175,15 +185,20 @@ def main():
         
         total_instances = len(rows)
         gurobi_solutions = sum(1 for row in rows if row['SOL_GUROBI'] != 'NA')
-        optimal_matches = sum(1 for row in rows if row['SOL_GUROBI'] != 'NA' and row['SO'] != 'NA' 
-                            and float(row['SOL_GUROBI']) == float(row['SO']))
+        optimal_matches = sum(
+            1
+            for row in rows
+            if row['SOL_GUROBI'] != 'NA'
+            and row['SO'] != 'NA'
+            and float(row['SOL_GUROBI']) == float(row['SO'])
+        )
         
         print(f"Total de instâncias: {total_instances}")
         print(f"Instâncias com solução Gurobi: {gurobi_solutions}")
         print(f"Instâncias onde Gurobi alcançou o ótimo: {optimal_matches}")
         
+        # Estatísticas de tempo do Gurobi
         if gurobi_solutions > 0:
-            # Calcular estatísticas de tempo
             times = []
             for row in rows:
                 if row['TIME_GUROBI'] != 'NA':
@@ -198,11 +213,45 @@ def main():
                 print(f"  Tempo mínimo: {min(times):.2f} segundos")
                 print(f"  Tempo máximo: {max(times):.2f} segundos")
                 print(f"  Tempo total: {sum(times):.2f} segundos")
+
+        # Estatísticas da heurística (VNS)
+        vns_times = []
+        heur_optimal_matches = 0
+
+        for row in rows:
+            sf = row.get('SF', 'NA')
+            so = row.get('SO', 'NA')
+
+            # Contar quantas vezes a heurística atingiu o ótimo (SF == SO)
+            if sf != 'NA' and so != 'NA':
+                try:
+                    if float(sf) == float(so):
+                        heur_optimal_matches += 1
+                except ValueError:
+                    pass
+
+            # Coletar tempos da heurística (Total_Time_s)
+            t_vns = row.get('Total_Time_s', 'NA')
+            if t_vns != 'NA':
+                try:
+                    vns_times.append(float(t_vns))
+                except ValueError:
+                    pass
+
+        print(f"\nEstatísticas da heurística (VNS):")
+        print(f"  Ótimos encontrados: {heur_optimal_matches}")
+        if vns_times:
+            avg_vns = sum(vns_times) / len(vns_times)
+            print(f"  Tempo médio: {avg_vns:.2f} segundos")
+            print(f"  Tempo mínimo: {min(vns_times):.2f} segundos")
+            print(f"  Tempo máximo: {max(vns_times):.2f} segundos")
+            print(f"  Tempo total: {sum(vns_times):.2f} segundos")
         
         # Mostrar primeiras linhas como exemplo
         print(f"\nPrimeiras 5 linhas do arquivo gerado:")
         for i, row in enumerate(rows[:5]):
             print(f"  {i+1}. {row['Instance']}: VNS={row['SF']}, Gurobi={row['SOL_GUROBI']}, Ótimo={row['SO']}")
+
 
 if __name__ == "__main__":
     main()
