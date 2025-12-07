@@ -3,7 +3,7 @@
 # ----------------------
 # Parâmetros do VNS
 # ----------------------
-VNS_MAX_ITER = 500      # número padrão de iterações
+VNS_MAX_ITER = 1000      # número padrão de iterações
 VNS_K_MAX = 3            # k_max padrão
 DEFAULT_SEED = 42        # seed default se nenhuma for passada
 
@@ -20,4 +20,4 @@ SEEDS_GRANDES = [97, 131, 197, 223, 281, 313, 487, 557, 613, 733, 1707, 1905, 19
 
 # Limite de tempo de cada execução do VNS (em segundos)
 # Use None para não ter limite
-TIME_LIMIT = 600
+TIME_LIMIT = 500

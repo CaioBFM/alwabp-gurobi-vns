@@ -87,12 +87,13 @@ class ALWABPInstance:
         # Precedências
         precedences = []
         while True:
-            line = sys.stdin.readline().strip()
+            line = sys.stdin.readline()
             if not line:
                 break
-            parts = line.split()
-            if not parts:
+            line = line.strip()
+            if not line:
                 continue
+            parts = line.split()
             try:
                 i, j = map(int, parts)
                 if i == -1 and j == -1:
@@ -103,8 +104,6 @@ class ALWABPInstance:
                 if line and not line.startswith("#"):
                     print(f"Erro ao ler precedência '{line}': {e}", file=sys.stderr)
                     sys.exit(1)
-                elif not line:
-                    break
 
         return cls(num_tasks, num_workers, task_times_transposed, precedences)
 
@@ -126,7 +125,7 @@ class ALWABPSolution:
 
         self.is_feasible = False
         self.cycle_time = INF
-        self.station_times = []
+        self.station_times: List[float] = []
 
     def evaluate(self):
         """
@@ -139,6 +138,13 @@ class ALWABPSolution:
         inst = self.instance
         n = inst.num_tasks
         m = inst.num_workers
+
+        # Verifica se índices de estação são válidos
+        if any((s < 0 or s >= m) for s in self.task_station_assignment):
+            self.is_feasible = False
+            self.cycle_time = INF
+            self.station_times = [INF] * m
+            return
 
         # Precedências
         for i1, j1 in inst.precedences:
@@ -155,10 +161,11 @@ class ALWABPSolution:
 
         # Soma tempos por estação
         station_times = [0.0] * m
-        tasks_in_station = {s: [] for s in range(m)}
+        tasks_in_station: Dict[int, List[int]] = {s: [] for s in range(m)}
 
         for i in range(n):
-            tasks_in_station[self.task_station_assignment[i]].append(i)
+            s = self.task_station_assignment[i]
+            tasks_in_station[s].append(i)
 
         for s in range(m):
             w = self.worker_station_assignment[s]
@@ -175,7 +182,7 @@ class ALWABPSolution:
 
         self.is_feasible = True
         self.station_times = station_times
-        self.cycle_time = max(station_times) if station_times else 0
+        self.cycle_time = max(station_times) if station_times else 0.0
 
     def __lt__(self, other: 'ALWABPSolution') -> bool:
         """Comparação entre soluções: factível > infactível; menor cycle_time é melhor."""
@@ -196,7 +203,7 @@ class ALWABPSolution:
         m = self.instance.num_workers
         n = self.instance.num_tasks
 
-        station_tasks = {s + 1: [] for s in range(m)}
+        station_tasks: Dict[int, List[int]] = {s + 1: [] for s in range(m)}
         for i in range(n):
             s = self.task_station_assignment[i] + 1
             station_tasks[s].append(i + 1)
@@ -216,6 +223,11 @@ class ALWABPSolution:
 def check_precedence_feasibility(instance: ALWABPInstance,
                                  task_station_assignment: List[int]) -> bool:
     """Valida precedências para uma atribuição de tarefas."""
+    m = instance.num_workers
+    # índices de estação válidos
+    if any((s < 0 or s >= m) for s in task_station_assignment):
+        return False
+
     for i1, j1 in instance.precedences:
         i = i1 - 1
         j = j1 - 1
@@ -240,7 +252,7 @@ def generate_initial_solution(instance: ALWABPInstance) -> ALWABPSolution:
     random.shuffle(workers)
     worker_station_assignment = workers
 
-    # Topological order
+    # Ordem topológica
     in_degree = {i: len(instance.predecessors[i + 1]) for i in range(n)}
     queue = [i for i in range(n) if in_degree[i] == 0]
     topo = []
@@ -262,8 +274,10 @@ def generate_initial_solution(instance: ALWABPInstance) -> ALWABPSolution:
     task_station_assignment = [-1] * n
 
     for i in topo:
+        alocado = False
         for s in range(m):
             w = worker_station_assignment[s]
+            # incapacidade
             if instance.task_times[w][i] >= INF:
                 continue
 
@@ -275,15 +289,26 @@ def generate_initial_solution(instance: ALWABPInstance) -> ALWABPSolution:
                     break
             if ok:
                 task_station_assignment[i] = s
+                alocado = True
                 break
 
-        if task_station_assignment[i] == -1:
+        if not alocado:
             print(f"Erro ao alocar tarefa {i+1}.", file=sys.stderr)
             return ALWABPSolution(instance, [-1] * n, worker_station_assignment)
 
     sol = ALWABPSolution(instance, task_station_assignment, worker_station_assignment)
     sol.evaluate()
     return sol
+
+
+def generate_initial_solution_multi(instance: ALWABPInstance, num_starts: int = 3) -> ALWABPSolution:
+    """Gera várias soluções iniciais gulosas e retorna a melhor."""
+    best = None
+    for _ in range(num_starts):
+        sol = generate_initial_solution(instance)
+        if best is None or sol < best:
+            best = sol
+    return best
 
 
 # ------------------------------------------------------
@@ -304,13 +329,13 @@ def vns(instance: ALWABPInstance,
     quando o tempo estourar e devolve o melhor s_best encontrado
     até o momento.
     """
-    s_initial = generate_initial_solution(instance)
+    s_initial = generate_initial_solution_multi(instance, num_starts=3)
     s_best = s_initial
     s_current = s_initial
 
     start_time = time.time()
-
     iteration = 0
+
     while iteration < max_iter:
         # Verifica limite de tempo no início de cada iteração
         if time_limit is not None and (time.time() - start_time) >= time_limit:
@@ -329,9 +354,7 @@ def vns(instance: ALWABPInstance,
                 s_current = s_prime_prime
                 if s_current < s_best:
                     s_best = s_current
-                    k = 1
-                else:
-                    k += 1
+                k = 1
             else:
                 k += 1
 
@@ -342,44 +365,75 @@ def vns(instance: ALWABPInstance,
 
 def shaking(solution: ALWABPSolution, k: int) -> ALWABPSolution:
     """
-    Realiza shaking (perturbação):
-    k=1 Swap de tarefas
-    k=2 Reatribuição de tarefa
-    k=3 Swap de trabalhadores
+    Gera um vizinho por perturbação controlada.
+    Garante:
+    - índices válidos
+    - precedência respeitada
+    - incapacidade checada rapidamente
     """
     inst = solution.instance
     n = inst.num_tasks
     m = inst.num_workers
 
-    new_t = list(solution.task_station_assignment)
-    new_w = list(solution.worker_station_assignment)
+    base_t = solution.task_station_assignment
+    base_w = solution.worker_station_assignment
 
-    if k == 1:
-        if n < 2:
-            return solution
-        i1, i2 = random.sample(range(n), 2)
-        new_t[i1], new_t[i2] = new_t[i2], new_t[i1]
+    # Tenta algumas vezes gerar um vizinho factível
+    for _ in range(10):
+        new_t = list(base_t)
+        new_w = list(base_w)
 
-    elif k == 2:
-        i = random.choice(range(n))
-        s_old = new_t[i]
-        opts = [s for s in range(m) if s != s_old]
-        if not opts:
-            return solution
-        new_t[i] = random.choice(opts)
+        if k == 1 and n >= 2:
+            # 1 swap de tarefas
+            i1, i2 = random.sample(range(n), 2)
+            new_t[i1], new_t[i2] = new_t[i2], new_t[i1]
 
-    elif k == 3:
-        if m < 2:
-            return solution
-        s1, s2 = random.sample(range(m), 2)
-        new_w[s1], new_w[s2] = new_w[s2], new_w[s1]
+        elif k == 2 and n > 0:
+            # algumas reatribuições de tarefa
+            num_moves = min(3, n)
+            for _m in range(num_moves):
+                i = random.randrange(n)
+                s_new = random.randrange(m)
+                new_t[i] = s_new
 
-    else:
-        return shaking(solution, 2)
+        elif k == 3 and m >= 2:
+            # 1 swap de trabalhadores + 2 reatribuições de tarefas
+            s1, s2 = random.sample(range(m), 2)
+            new_w[s1], new_w[s2] = new_w[s2], new_w[s1]
 
-    s_prime = ALWABPSolution(inst, new_t, new_w)
-    s_prime.evaluate()
-    return s_prime
+            num_moves = min(2, n)
+            for _m in range(num_moves):
+                i = random.randrange(n)
+                s_new = random.randrange(m)
+                new_t[i] = s_new
+        else:
+            # perturbação simples
+            if n > 0:
+                i = random.randrange(n)
+                new_t[i] = (new_t[i] + 1) % m
+
+        # checagem rápida de incapacidade
+        feasible_cap = True
+        for i in range(n):
+            s = new_t[i]
+            w = new_w[s]
+            if inst.task_times[w][i] >= INF:
+                feasible_cap = False
+                break
+        if not feasible_cap:
+            continue
+
+        # precedência
+        if not check_precedence_feasibility(inst, new_t):
+            continue
+
+        s_prime = ALWABPSolution(inst, new_t, new_w)
+        s_prime.evaluate()
+        if s_prime.is_feasible:
+            return s_prime
+
+    # fallback: não conseguiu gerar vizinho melhor
+    return solution
 
 
 def vnd(solution: ALWABPSolution) -> ALWABPSolution:
@@ -409,17 +463,37 @@ def vnd(solution: ALWABPSolution) -> ALWABPSolution:
 
 
 def local_search_task_reassignment(solution: ALWABPSolution) -> ALWABPSolution:
-    """Busca local (first improvement) movendo tarefas entre estações."""
+    """
+    Busca local focada em aliviar a estação crítica (first improvement).
+    Reatribui tarefas entre estações respeitando precedências e incapacidade.
+    """
     inst = solution.instance
     n = inst.num_tasks
     m = inst.num_workers
 
     s_current = solution
-    improved = True
 
-    while improved:
+    while True:
+        s_current.evaluate()
+        if not s_current.is_feasible:
+            return s_current
+
+        station_times = s_current.station_times
+        # se alguma estação for INF, não faz sentido continuar
+        if any(t >= INF for t in station_times):
+            return s_current
+
+        # Estação crítica (maior tempo)
+        worst_station = max(range(m), key=lambda s: station_times[s])
         improved = False
-        for i in range(n):
+
+        # Tarefas atualmente na estação crítica
+        tasks_in_worst = [
+            i for i in range(n)
+            if s_current.task_station_assignment[i] == worst_station
+        ]
+
+        for i in tasks_in_worst:
             s_old = s_current.task_station_assignment[i]
             for s_new in range(m):
                 if s_new == s_old:
@@ -428,47 +502,88 @@ def local_search_task_reassignment(solution: ALWABPSolution) -> ALWABPSolution:
                 new_t = list(s_current.task_station_assignment)
                 new_t[i] = s_new
 
+                # precedência
                 if not check_precedence_feasibility(inst, new_t):
                     continue
 
-                s_neighbor = ALWABPSolution(inst, new_t, s_current.worker_station_assignment)
+                # incapacidade rápida
+                w_new = s_current.worker_station_assignment[s_new]
+                if inst.task_times[w_new][i] >= INF:
+                    continue
+
+                s_neighbor = ALWABPSolution(
+                    inst,
+                    new_t,
+                    list(s_current.worker_station_assignment)
+                )
                 s_neighbor.evaluate()
 
-                if s_neighbor < s_current:
+                if s_neighbor.is_feasible and s_neighbor < s_current:
                     s_current = s_neighbor
                     improved = True
                     break
             if improved:
                 break
+
+        if not improved:
+            break
 
     return s_current
 
 
 def local_search_worker_swap(solution: ALWABPSolution) -> ALWABPSolution:
-    """Busca local (first improvement) trocando trabalhadores entre estações."""
+    """
+    Busca local trocando trabalhadores com foco na estação crítica (first improvement).
+    """
     inst = solution.instance
     m = inst.num_workers
 
     s_current = solution
-    improved = True
 
-    while improved:
+    while True:
+        s_current.evaluate()
+        if not s_current.is_feasible:
+            return s_current
+
+        station_times = s_current.station_times
+        if any(t >= INF for t in station_times):
+            return s_current
+
+        worst_station = max(range(m), key=lambda s: station_times[s])
         improved = False
 
-        for s1 in range(m):
-            for s2 in range(s1 + 1, m):
-                new_w = list(s_current.worker_station_assignment)
-                new_w[s1], new_w[s2] = new_w[s2], new_w[s1]
+        # Tenta trocar o trabalhador da estação crítica com outras estações
+        for s2 in range(m):
+            if s2 == worst_station:
+                continue
 
-                s_neighbor = ALWABPSolution(inst, s_current.task_station_assignment, new_w)
-                s_neighbor.evaluate()
+            new_w = list(s_current.worker_station_assignment)
+            new_w[worst_station], new_w[s2] = new_w[s2], new_w[worst_station]
 
-                if s_neighbor < s_current:
-                    s_current = s_neighbor
-                    improved = True
+            # check rápida de incapacidade para todas tarefas
+            feasible_cap = True
+            for i, s in enumerate(s_current.task_station_assignment):
+                w = new_w[s]
+                if inst.task_times[w][i] >= INF:
+                    feasible_cap = False
                     break
-            if improved:
+            if not feasible_cap:
+                continue
+
+            s_neighbor = ALWABPSolution(
+                inst,
+                list(s_current.task_station_assignment),
+                new_w
+            )
+            s_neighbor.evaluate()
+
+            if s_neighbor.is_feasible and s_neighbor < s_current:
+                s_current = s_neighbor
+                improved = True
                 break
+
+        if not improved:
+            break
 
     return s_current
 
@@ -476,7 +591,6 @@ def local_search_worker_swap(solution: ALWABPSolution) -> ALWABPSolution:
 def parse_args():
     parser = argparse.ArgumentParser(description="VNS para ALWABP")
 
-    # mesmo comportamento de antes:
     # 1º arg: nome do arquivo de saída
     parser.add_argument(
         "output_filename",
