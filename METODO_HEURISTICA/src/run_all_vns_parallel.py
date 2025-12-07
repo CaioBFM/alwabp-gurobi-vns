@@ -3,12 +3,13 @@ import time
 from concurrent.futures import ProcessPoolExecutor, as_completed
 
 from config import (
-    NUM_REPLICATIONS,
-    SEEDS,
-    TIME_LIMIT,      # limite de tempo POR INSTÂNCIA
+    SEEDS_PEQ,
+    SEEDS_GRANDES,
+    TIME_LIMIT,
     VNS_MAX_ITER,
     VNS_K_MAX,
 )
+
 from file_handler import (
     load_instance_files,
     load_optimal_values,
@@ -29,23 +30,20 @@ SUMMARY_FILE = os.path.join(OUTPUT_DIR, "../summary_results.csv")
 TEMP_FILE = os.path.join(OUTPUT_DIR, "../temp_results.csv")
 
 
-def run_instance_with_limit(instance_path: str,
-                            instance_name: str,
-                            num_replications: int,
-                            seeds: list,
-                            vns_script: str,
-                            output_dir: str,
-                            max_iter: int,
-                            k_max: int,
-                            instance_time_limit: float | None):
+def run_instance_with_limit(
+    instance_path: str,
+    instance_name: str,
+    num_replications: int,
+    seeds: list,
+    vns_script: str,
+    output_dir: str,
+    max_iter: int,
+    k_max: int,
+    instance_time_limit: float | None,
+):
     """
     Roda TODAS as replicações de UMA instância, em série, respeitando
     um limite de tempo total por instância.
-
-    - Mede o tempo desde o início da primeira replicação até o fim da última
-      (ou até estourar o limite).
-    - Se atingir o tempo-limite, interrompe novas replicações.
-    - Retorna (lista_de_resultados, tempo_total_da_instancia).
     """
     start_time = time.time()
     results = []
@@ -79,6 +77,19 @@ def run_instance_with_limit(instance_path: str,
     return results, total_time
 
 
+def get_seed_pool(instance_name: str) -> list[int]:
+    """
+    Retorna o pool de seeds apropriado para a instância.
+    TON / WEE usam SEEDS_GRANDES, o resto usa SEEDS_PEQ.
+    """
+    name = instance_name.lower()
+
+    if "_ton" in name or "_wee" in name:
+        return SEEDS_GRANDES
+
+    return SEEDS_PEQ
+
+
 def run_experiment_parallel():
     """
     Executa todas as instâncias em paralelo, mas as replicações de cada
@@ -92,8 +103,9 @@ def run_experiment_parallel():
     # Listar instâncias
     print(f"Carregando instâncias de {INSTANCES_DIR}...")
     instance_files = load_instance_files(INSTANCES_DIR)
+    total_instances = len(instance_files)
 
-    print(f"Iniciando experimentos: {len(instance_files)} instâncias × {NUM_REPLICATIONS} replicações (máx.)")
+    print(f"Iniciando experimentos: {total_instances} instâncias.")
     print(f"Limite de tempo por instância: {TIME_LIMIT if TIME_LIMIT is not None else 'sem limite'} s")
     print(f"Arquivo temporário: {TEMP_FILE}")
     print(f"Arquivo final: {SUMMARY_FILE}")
@@ -103,34 +115,46 @@ def run_experiment_parallel():
 
     # Cada futuro agora corresponde a UMA instância
     with ProcessPoolExecutor() as executor:
-        futures = {
-            executor.submit(
+        futures = {}
+
+        for instance_path in instance_files:
+            instance_name = os.path.basename(instance_path)
+
+            # escolhe o pool de seeds conforme a família da instância
+            seed_pool = get_seed_pool(instance_name)
+
+            future = executor.submit(
                 run_instance_with_limit,
                 instance_path,
-                os.path.basename(instance_path),
-                NUM_REPLICATIONS,
-                SEEDS,
+                instance_name,
+                len(seed_pool),   # número de replicações = qtd de seeds
+                seed_pool,        # lista de seeds daquela instância
                 VNS_SCRIPT,
                 OUTPUT_DIR,
                 VNS_MAX_ITER,
                 VNS_K_MAX,
-                TIME_LIMIT,        # limite de tempo POR instância
-            ): os.path.basename(instance_path)
-            for instance_path in instance_files
-        }
+                TIME_LIMIT,       # limite de tempo POR instância
+            )
+
+            futures[future] = instance_name
 
         print("\nProgresso:")
 
-        for i, future in enumerate(as_completed(futures)):
+        # i vai de 1 até total_instances
+        for i, future in enumerate(as_completed(futures), start=1):
             instance_name = futures[future]
             instance_results, total_time = future.result()  # lista de linhas + tempo total
             all_results.extend(instance_results)
             instance_times[instance_name] = total_time
 
-            pct = (i + 1) / len(instance_files) * 100
-            print(f"  -> {i+1}/{len(instance_files)} instâncias ({pct:.2f}%)", end="\r", flush=True)
+            pct = (i / total_instances) * 100
+            print(
+                f"  -> {i}/{total_instances} instâncias concluídas ({pct:.2f}%)",
+                end="\r",
+                flush=True
+            )
 
-    print("\n\nTodas as instâncias concluídas (ou interrompidas por tempo).")
+    print(f"\n\nTodas as {total_instances} instâncias concluídas (ou interrompidas por tempo).")
     
     # Salvar resultados temporários
     print(f"Salvando resultados temporários em {TEMP_FILE}...")

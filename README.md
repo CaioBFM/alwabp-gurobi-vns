@@ -100,11 +100,14 @@ Para executar o método exato:
 
 Os principais parâmetros da heurística são definidos em `METODO_HEURISTICA/src/config.py`, por exemplo:
 
-- `NUM_REPLICATIONS`  
-  Número máximo de replicações por instância (execuções independentes).
+<!-- - `NUM_REPLICATIONS`
+  Número máximo de replicações por instância (execuções independentes). -->
 
-- `SEEDS`  
-  Lista de sementes aleatórias. A instância é rodada várias vezes, uma seed por replicação.
+- `SEEDS_PEQUENAS`  
+  Lista de sementes para instâncias pequenas. A instância é rodada várias vezes, uma seed por replicação.
+
+- `SEEDS_GRANDES`  
+  Lista de sementes para instâncias grandes. A instância é rodada várias vezes, uma seed por replicação.
 
 - `TIME_LIMIT`  
   **Limite de tempo total por instância** (em segundos).
@@ -134,7 +137,8 @@ Esse script:
 
 1. Lê as instâncias em `../testes_relatorio/instancias_teste_relatorio/`;
 2. Para cada instância:
-   - Executa até `NUM_REPLICATIONS` replicações, cada uma com uma seed da lista `SEEDS`;
+   - Escolhe qual seed usar (grande ou pequena) e guarda valores em `NUM_REPLICATIONS` e `SEEDS`;
+   - Executa até `NUM_REPLICATIONS` replicações, cada uma com uma seed da lista;
    - Respeita o `TIME_LIMIT` total daquela instância;
    - Salva as soluções detalhadas (por replicação) em  
      `../testes_relatorio/vns_resultados_teste_relatorio/`;
